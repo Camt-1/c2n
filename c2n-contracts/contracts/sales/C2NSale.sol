@@ -35,10 +35,10 @@ contract C2NSale is ReentrancyGuard {
     }
 
     struct Participation {
-        uint256 amountBounght;
+        uint256 amountBought;
         uint256 amountETHPaid;
-        uint256 timeParticpated;
-        bool[] isPortionWithdrwan;
+        uint256 timeParticipated;
+        bool[] isPortionWithdrawn;
     }
     struct Registration {
         uint256 registrationTimeStarts;
@@ -93,6 +93,8 @@ contract C2NSale is ReentrancyGuard {
         factory = ISalesFactory(msg.sender);
         allocationStakingContract = IAllocationStaking(_allocationStaking);
     }
+
+    receive() external payable {}
 
     function setVestingParams(
         uint256[] memory _unlockingTimes,
@@ -270,5 +272,254 @@ contract C2NSale is ReentrancyGuard {
         registration.registrationTimeEnds += timeToAdd;
     }
 
-    
+    function setCap(uint256 cap) external onlyAdmin {
+        require(
+            block.timestamp < sale.saleStart,
+            "sale already started."
+        );
+        require(cap > 0, "Can't set max participation to 0");
+
+        sale.maxParticipation = cap;
+
+        emit MaxParticipationSet(sale.maxParticipation);
+    }
+
+    function depositTokens() external onlySaleOwner {
+        require(!sale.tokensDeposited, "Deposit can be done only once");
+        
+        sale.tokensDeposited = true;
+
+        sale.token.safeTransferFrom(
+            msg.sender,
+            address(this),
+            sale.amountOfTokensToSell
+        );
+    }
+
+    function participate(
+        bytes memory signature,
+        uint256 amount
+    ) external payable {
+        require(
+            amount <= sale.maxParticipation,
+            "Overflowing maximal participation for sale."
+        );
+        require(
+            isRegistered[msg.sender],
+            "Not registered for this sale."
+        );
+        require(
+            checkParticipationsSignature(
+                signature,
+                msg.sender,
+                amount
+            ),
+            "Invalid signature. Verification failed"
+        );
+        require(
+            block.timestamp >= sale.saleStart &&
+            block.timestamp < sale.saleEnd, "sale didn't start or it's ended."
+        );
+        require(!isParticipated[msg.sender], "User can participate only once.");
+        require(msg.sender == tx.origin, "Only direct contract calls.");
+
+        uint256 amountOfTokensBuying =
+            (msg.value) * (uint(10) ** IERC20Metadata(address(sale.token)).decimals()) 
+            / sale.tokenPriceInETH;
+        
+        require(amountOfTokensBuying > 0, "Can't buy 0 tokens");
+        require(
+            amountOfTokensBuying <= amount,
+            "Tring to buy more than allowed."
+        );
+
+        sale.totalTokensSold += amountOfTokensBuying;
+        sale.totalETHRaised += msg.value;
+
+        bool[] memory _isPortionWithdrawn = new bool[](
+            vestingPortionsUnlockTime.length
+        );
+
+        Participation memory p = Participation({
+            amountBought : amountOfTokensBuying,
+            amountETHPaid : msg.value,
+            timeParticipated : block.timestamp,
+            isPortionWithdrawn : _isPortionWithdrawn
+        });
+
+        userToParticipation[msg.sender] = p;
+        isParticipated[msg.sender] = true;
+        numberOfParticipants++;
+
+        emit TokensSold(msg.sender, amountOfTokensBuying);
+    }
+
+    function withdrawTokens(uint256 portionId) external {
+        require(
+            block.timestamp >= sale.tokensUnlockTime,
+            "Tokens can't be withdrawn yet."
+        );
+        require(
+            portionId < vestingPercentPerPortion.length,
+            "Portion id out of range."
+        );
+
+        Participation storage p = userToParticipation[msg.sender];
+
+        if (
+            !p.isPortionWithdrawn[portionId] &&
+            vestingPortionsUnlockTime[portionId] <= block.timestamp
+        ) {
+            p.isPortionWithdrawn[portionId] = true;
+            uint256 amountWithdrawing = p.amountBought *
+                vestingPercentPerPortion[portionId] / portionVestingPrecision;
+            
+            if (amountWithdrawing > 0) {
+                sale.token.safeTransfer(msg.sender, amountWithdrawing);
+                emit TokensWithdrawn(msg.sender, amountWithdrawing);
+            }
+        } else {
+            revert("Tokens already withdrawn or portion not unlocked yet.");
+        }
+    }
+
+    function withdrawMultiplePortions(uint256 [] calldata portionIds) external {
+        uint256 totalToWithdraw = 0;
+
+        Participation storage p = userToParticipation[msg.sender];
+
+        for (uint i = 0; i < portionIds.length; i++) {
+            uint256 portionId = portionIds[i];
+            require(portionId < vestingPercentPerPortion.length);
+
+            if (
+                !p.isPortionWithdrawn[portionId] &&
+                vestingPortionsUnlockTime[portionId] <= block.timestamp
+            ) {
+                p.isPortionWithdrawn[portionId] = true;
+                uint256 amountWithdrawing = p.amountBought *
+                    vestingPercentPerPortion[portionId] / portionVestingPrecision;
+                totalToWithdraw += amountWithdrawing;                
+            }
+        }
+        if (totalToWithdraw > 0) {
+            sale.token.safeTransfer(msg.sender, totalToWithdraw);
+            emit TokensWithdrawn(msg.sender,totalToWithdraw);
+        }
+    }
+
+    function safeTransferETH(address to, uint256 value) internal {
+        (bool success, ) = to.call{value : value}(new bytes(0));
+        require(success);
+    }
+
+    function withdrawEarningsAndLeftover() external onlySaleOwner {
+        withdrawEarningsInternal();
+        withdrawLeftoverInternal();       
+    }
+
+    function withdrawEarnings() external onlySaleOwner {
+        withdrawEarningsInternal();
+    }
+
+    function withdrawLeftover() external onlySaleOwner {
+        withdrawLeftoverInternal();
+    }
+
+    function withdrawEarningsInternal() internal {
+        require(block.timestamp >= sale.saleEnd, "sale is not ended yet.");
+        require(!sale.earningsWithdrawn, "owner can't withdraw earnings twice");
+
+        sale.earningsWithdrawn = true;
+        uint256 totalProfit = sale.totalETHRaised;
+        safeTransferETH(msg.sender, totalProfit);
+    }
+
+    function withdrawLeftoverInternal() internal {
+        require(block.timestamp >= sale.saleEnd, "sale is not ended yet.");
+        require(!sale.leftoverWithdrawn, "owner can't withdraw leftover twice");
+
+        sale.leftoverWithdrawn = true;
+        uint256 leftover = sale.amountOfTokensToSell - sale.totalTokensSold;
+        if (leftover > 0) {
+            sale.token.safeTransfer(msg.sender, leftover);
+        }
+    }
+
+    function checkRegistrationSignature(
+        bytes memory signature,
+        address user
+    ) public view returns (bool) {
+        bytes32 hash = keccak256(
+            abi.encodePacked(user, address(this))
+        );
+        bytes32 messageHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)
+        );
+
+        return admin.isAdmin(messageHash.recover(signature));
+    }
+
+    function checkParticipationsSignature(
+        bytes memory signature,
+        address user,
+        uint256 amount
+    ) public view returns (bool) {
+        return admin.isAdmin(
+            getParticipationSigner(
+                signature,
+                user,
+                amount
+            )
+        );
+    }
+
+    function getParticipationSigner(
+        bytes memory signature,
+        address user,
+        uint256 amount
+    ) public view returns (address) {
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                user,
+                amount,
+                address(this)
+            )
+        );
+        bytes32 messageHash = keccak256(
+            abi.encodePacked("\n19Ethereum Signed Message:\n32", hash)
+        );
+        return messageHash.recover(signature);
+    }
+
+    function getParticipation(address _user)
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            bool[] memory
+        )
+    {
+        Participation memory p = userToParticipation[_user];
+        return (
+            p.amountBought,
+            p.amountETHPaid,
+            p.timeParticipated,
+            p.isPortionWithdrawn
+        );
+    }
+
+    function getNumberOfRegisteredUsers() external view returns (uint256) {
+        return registration.numberOfRegistrants;
+    }
+
+    function getVestingInfo()
+        external
+        view
+        returns (uint256[] memory, uint256[] memory)
+    {
+        return (vestingPortionsUnlockTime, vestingPercentPerPortion);
+    }
 }
