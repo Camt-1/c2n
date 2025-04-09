@@ -60,6 +60,22 @@ async function main() {
   await salesFactory.setAllocationStaking(allocationStaking.address);
   console.log(`salesFactory.setAllocationStaking ${allocationStaking.address} done.`);
 
+  //授权代币并添加池子
+  const totalRewards = ethers.utils.parseEther('C2NToken', contracts['C2N-TOKEN']);
+  console.log("ready to approve " , c.initialRewardsAllocationStaking, "token to staking");
+  let tx = await token.approve(allocationStaking.address, totalRewards);
+  await tx.wait()
+  console.log(`token.approve($(allocationStaking.address), ${totalRewards.toString()})`);
+  console.log("ready to add c2n to pool")
+  await tx.wait()
+  console.log(`allocationStaking.add(${token.address})`);
+  console.log("ready to add boba to pool")
+  
+  //调用fund方法,为AllocationStaking池子提供测试资金
+  const fund = Math.floor(Number(c.initialRewardsAllocationStaking)).toString()
+  console.log(`ready to fund ${fund} token for testing`)
+  await allocationStaking.func(ethers.utils.parseEther(fund));
+  console.log('Funded tokens')
 }
 
 main()
@@ -68,3 +84,10 @@ main()
     console.error(error);
     process.exit(1);
   });
+/**
+ * 实现以下功能:
+ * i. 部署合约并保存地址
+ * ii. 配置合约之间的交互关系
+ * iii. 添加资金池和测试资金
+ * iv. 支持可升级合约的部署
+ */
