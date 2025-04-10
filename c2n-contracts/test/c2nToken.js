@@ -1,14 +1,3 @@
-/**
- * 测试目标是验证breToken合约的核心功能,具体包括:
- * 1. ERC20标准功能:
- *  - Token的基本属性(名称, 符号, 小数位数, 总供应量等)
- *  - 转账功能(transfer, transferFrom)
- *  - 授权功能(approve, allowance)
- *  - 销毁功能(burn)
- *  - 减少授权额度功能(decreaseAllowance)
- * 2. 错误处理:
- *  - 检查异常情况是否按照预期触发(如余额不足时的转账, 零地址操作等)
- */
 const { ethers } = require("hardhat")
 const hre = require('hardhat');
 const chai = require('chai');
@@ -32,7 +21,7 @@ let breToken, owner, ownerAddr, anotherAccount, anotherAccountAddr, recipient, r
 async function awaitTx(tx) {
   return await (await tx).wait()
 }
-//捕获以太坊交易异常并返回是否属于预期错误
+//工具方法, 捕获以太坊交易异常并返回是否属于预期错误
 async function isEthException(promise) {
   let msg = 'No Exception';
   try {
@@ -69,7 +58,7 @@ async function setupContractAndAccounts () {
   breToken = breToken.connect(owner)
 }
 
-//合约属性验证
+//代币合约属性验证
 describe('breToken: ERC20', () => {
   before('setup breToken contract', async () => {
     await setupContractAndAccounts()
@@ -136,6 +125,7 @@ describe('breToken: ERC20: transfer', () => {
     await setupContractAndAccounts()
   })
 
+  //发送者是无效地址
   describe('when the sender is invalid address', () => {
     it('reverts', async () => {
       expect(
@@ -144,6 +134,7 @@ describe('breToken: ERC20: transfer', () => {
     })
   })
 
+  //发送者余额不足
   describe('when the sender does NOT have enough balance', () => {
     it('reverts', async () => {
       expect(
@@ -152,6 +143,7 @@ describe('breToken: ERC20: transfer', () => {
     })
   })
 
+  //发送者余额足够
   describe('when the sender has enough balance', () => {
     before(async () => {
       r = await awaitTx(breToken.transfer(recipientAddr, transferAmount))
@@ -164,6 +156,7 @@ describe('breToken: ERC20: transfer', () => {
       expect(supply.sub(transferAmount)).to.equal(senderBalance)
       expect(recipientBalance).to.equal(transferAmount)
     })
+
     it('should emit a transfer event', async () => {
       expect(r.events.length).to.equal(1)
       expect(r.events[0].event).to.equal('Transfer')
@@ -173,6 +166,7 @@ describe('breToken: ERC20: transfer', () => {
     })
   })
 
+  //接收者是空地址
   describe('when the recipient is the zero address', () => {
     it('should fail', async () => {
       expect(
@@ -188,7 +182,9 @@ describe('breToken: ERC20: transferFrom', () => {
     await setupContractAndAccounts()
   })
 
+  //授权额度不足
   describe('when the spender dose NOT have enough approved balance', () => {
+    //授权额度不足, 余额不足
     describe('when the owner does NOT have enough balance', () => {
       it('reverts', async () => {
         await awaitTx(breToken.approve(anotherAccountAddr, overdraftAmountMinusOne))
@@ -197,7 +193,7 @@ describe('breToken: ERC20: transferFrom', () => {
         ).to.be.true
       })
     })
-
+    //授权额度不足, 余额足够
     describe('when the owner has enough balance', () => {
       it('reverts', async () => {
         await awaitTx(breToken.approve(anotherAccountAddr, transferAmountMinusOne))
@@ -208,7 +204,9 @@ describe('breToken: ERC20: transferFrom', () => {
     })
   })
 
+  //授权额度足够
   describe('when the spender has enough appeoved balance', () => {
+    //授权额度足够, 余额不足
     describe('when the owner dose NOT have enough balance', () => {
       it('should fail', async () => {
         await awaitTx(breToken.approve(anotherAccountAddr, overdraftAmount))
@@ -218,7 +216,9 @@ describe('breToken: ERC20: transferFrom', () => {
       })
     })
 
+    //授权额度足够, 余额足够
     describe('when the owner has enough balance', () => {
+      //超额转账
       describe('when the over does NOT have enough balance', () => {
         it('should fail', async () => {
           await awaitTx(breToken.approve(anotherAccountAddr, overdraftAmount))
@@ -229,7 +229,7 @@ describe('breToken: ERC20: transferFrom', () => {
       })
 
       describe('when the owner has enough balance', () => {
-        let prevSenderBalance, recipient
+        let prevSenderBalance, r
         
         before(async () => {
           prevSenderBalance = await breToken.balanceOf(ownerAddr)
@@ -258,5 +258,135 @@ describe('breToken: ERC20: transferFrom', () => {
       })
     })
   })
-
 })
+
+//授权功能验证
+describe('breToken: ERC20: approve', () => {
+  breToken('setup breToken contracrt', async () => {
+    await setupContractAndAccounts()
+  })
+
+  describe('when the spender is NOT the zero address', () => {
+    describe('when the sender has enough balance', () => {
+      describe('when thers was no approved amount before', () => {
+        before(async () => {
+          await awaitTx(breToken.approve(anotherAccountAddr, 0))
+          r = await awaitTx(breToken.approve(anotherAccountAddr, transferAmount))
+        })
+
+        it('approves the requested amount', async () => {
+          expect(await breToken.allowance(ownerAddr, anotherAccountAddr)).to.equal(transferAmount)
+        })
+
+        it('emits an approval event', async () => {
+          expect(r.events.length).to.equal(1)
+          expect(r.events[0].event).to.equal('Approval')
+          expect(r.events[0].args.owner).to.equal(ownerAddr)
+          expect(r.events[0].args.spender).to.equal(anotherAccountAddr)
+          expect(r.events[0].args.value).to.equal(transferAmount)
+        })
+      })
+
+      describe('when the spender had an approved amount', () => {
+        before(async () => {
+          await awaitTx(breTokne.approve(anotherAccountAddr, ethers.utils.parseEther('1')))
+          r = await awaitTx(breToken.approve(anotherAccountAddr, transferAmount))
+        })
+
+        it('approves the requested amount and replaces the previous one', async () => {
+          expect(await breToken.allowance(owner, anotherAccountAddr)).to.equal(transferAmount)
+        })
+
+        it('emits an approval event', async () => {
+          expect(r.events.length).to.equal(1)
+          expect(r.events[0].event).to.equal('Approval')
+          expect(r.events[0].args.owner).to.equal(ownerAddr)
+          expect(r.events[0].args.spender).to.equal.apply(anotherAccountAddr)
+          expect(r.events[0].args.value).to.equal(transferAmount)
+        })
+      })
+    })
+
+    describe('when the sender does not have enough balance', () => {
+      describe('when there was no approved amount before', () => {
+        before(async() => { 
+          await breToken.approve(anotherAccountAddr, 0)
+          r = await (await breToken.approve(anotherAccountAddr, overdraftAmount)).wait()
+        })
+
+        it('approves the requested amount', async () => {
+          expect(await breToken.allowance(ownerAddr, anotherAccountAddr).to.equal(overdraftAmount))
+        })
+
+        it('emits an approval event', async () => {
+          expect(r.events.length).to.equal(1)
+          expect(r.events[0].event).to.equal('Approval')
+          expect(r.events[0].args.owner).to.equal(ownerAddr)
+          expect(r.events[0].args.spender).to.equal(anotherAccountAddr)
+          expect(r.events[0].args.value).to.equal(overdraftAmount)
+        })
+      })
+
+      describe('when the spender had an approved amount', () => {
+        before(async () => {
+          await breToken.approve(anotherAccountAddr, ethers.utils.parseEther('1'))
+          r = await (await breToken.approve(anotherAccountAddr, overdraftAmount)).wait()
+        })
+
+        it('emits an approval event', async () => {
+          expect(r.events.length).to.equal(1)
+          expect(r.events[0].event).to.equal('Approval')
+          expect(r.events[0].args.owner).to.equal(ownerAddr)
+          expect(r.events[0].args.spender).to.equal(anotherAccountAddr)
+          expect(r.events[0].args.value).to.equal(overdraftAmount)
+        })
+      })
+    })
+  })
+})
+
+//减少授权额度验证
+describe('breToken: ERC20: decreaseAllowance', () => {
+  before('setup breToken contract', async () => {
+    await setupContractAndAccounts()
+  })
+
+  describe('when the spender is NOT the zero address', () => {
+    describe('when sender has enough balance', () => {
+      describe('when there was no approved amount before', () => {
+        before(async () => {
+          await breToken.approve(anotherAccountAddr, transferAmount)
+          r = await (await breToken.decreaseAllowance(anotherAccountAddr, unitTokenAmount)).wait()
+        })
+
+        it('should not decrease allowance more than current allowance', async () => {
+          let currentAllowance = await breToken.allowance(ownerAddr, anotherAccountAddr)
+          await expect(breToken.decreaseAllowance(anotherAccouontAddr, currentAllowance.add(unitTokenamount))).to.be.revertedWith("ERC20: decreased allowance below zero")
+        })
+
+        it('approves the requested amount', async () => {
+          expect(await breToken.allowance(ownerAddr, anotherAccountAddr)).to.equal(transferAmountMinusOne)
+        })
+
+        it('emits an approval event', async () => {
+          expect(r.events.length).to.equal(1)
+          expect(r.events[0].event).to.equal('Approval')
+          expect(r.events[0].args.owner).to.equal(ownerAddr)
+          expect(r.events[0].args.spender).to.equal(anotherAccountAddr)
+          expect(r.events[0].args.value).to.equal(transferAmountMinusOne)
+        })
+      })
+    })
+  })
+})
+/**
+ * 测试目标是验证breToken合约的核心功能,具体包括:
+ * 1. ERC20标准功能:
+ *  - Token的基本属性(名称, 符号, 小数位数, 总供应量等)
+ *  - 转账功能(transfer, transferFrom)
+ *  - 授权功能(approve, allowance)
+ *  - 销毁功能(burn)
+ *  - 减少授权额度功能(decreaseAllowance)
+ * 2. 错误处理:
+ *  - 检查异常情况是否按照预期触发(如余额不足时的转账, 零地址操作等)
+ */
