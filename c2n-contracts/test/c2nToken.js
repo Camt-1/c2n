@@ -262,7 +262,7 @@ describe('breToken: ERC20: transferFrom', () => {
 
 //授权功能验证
 describe('breToken: ERC20: approve', () => {
-  breToken('setup breToken contracrt', async () => {
+  breToken('setup breToken contract', async () => {
     await setupContractAndAccounts()
   })
 

@@ -100,6 +100,7 @@ describe("Admin", function() {
 
       //When
       await Admin.addAdmin(cedric.address)
+      
       //Then
       admins = await Admin.getAllAdmins()
       expect(admins.length).to.eq(4)
