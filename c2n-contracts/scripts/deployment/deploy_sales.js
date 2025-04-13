@@ -1,7 +1,7 @@
 const hre = require("hardhat");
 const {saveContractAddress, getSavedContractAddresses} = require('../utils')
 const config = require("../configs/saleConfig.json");
-const {ethers, web3} = hre
+const {ethers} = hre
 
 async function getCurrentBlockTimestamp() {
   //通过调用最新区块的时间戳,获取链上的当前时间
@@ -31,14 +31,14 @@ async function main() {
   const sale = await hre.ethers.getContractAt('C2NSale', lastDeployedSale);
   console.log(`Successfully instantiated sale contract at address: ${lastDeployedSale}.`);
   //待销售的代表总量
-  const totalTokens = ethers.utils.parseEther(c['totalTokens']);
+  const totalTokens = ethers.parseUnits(c['totalTokens'], 18);
   console.log('Total tokens to sell: ', c['totalTokens']);
   //代币价格(以ETH表示)
-  const tokenPriceInEth = ethers.utils.parseEther(c['tokenPriceInEth']);
+  const tokenPriceInEth = ethers.parseUnits(c['tokenPriceInEth'], 18);
   console.log('tokenPriceInEth: ', c['tokenPriceInEth']);
   //销售合约的所有者
   const saleOwner = c['saleOwner'];
-  console.log('Sale owenr is: ', c['saleOwner']);
+  console.log('Sale owner is: ', c['saleOwner']);
 
   //注册起始时间
   const registrationStart = c['registrationStartAt'];
@@ -49,7 +49,7 @@ async function main() {
   //销售截止时间
   const saleEndTime = saleStartTime + c['saleRoundLength'];
   //单个用户的最大参与量
-  const maxParticipation = ethers.utils.parseEther(c['maxParticipation']);
+  const maxParticipation = ethers.parseUnits(c['maxParticipation'], 18);
   //代币解锁时间
   const tokensUnlockTime = c['TGE'];
 
@@ -63,7 +63,7 @@ async function main() {
     totalTokens.toString(),
     saleEndTime,
     tokensUnlockTime,
-    c['protionVestingPrecision'],
+    c['portionVestingPrecision'],
     maxParticipation.toString()
   );
   await tx.wait()

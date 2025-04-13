@@ -1,7 +1,7 @@
 const hre = require("hardhat");
 const {saveContractAddress, getSavedContractAddresses} = require('../utils')
 const config = require("../configs/saleConfig.json");
-const {ethers, web3} = hre
+const {ethers} = hre
 
 //获取当前网络中最新区块的时间戳
 async function getCurrentBlockTimestamp() {

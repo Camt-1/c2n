@@ -50,7 +50,7 @@ function saveContractAddress(network, contract, address) {
     const addrs = getSavedContractAddresses()
     addrs[network] = addrs[network] || {}
     addrs[network][contract] = address
-    fs.writeFileSync(path.join(__dirname, `../deployments/contract-abis.json`), JSON.stringify(addrs, null, '    '))
+    fs.writeFileSync(path.join(__dirname, `../deployments/contract-addresses.json`), JSON.stringify(addrs, null, '    '))
 }
 
 //导出模块
