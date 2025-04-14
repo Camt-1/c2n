@@ -4,3 +4,9 @@
 /c2n-be/utils/http-client.env.json
 .DS_Store
 .deps
+
+node_modules
+package-lock.json
+.next
+.DS_Store
+out

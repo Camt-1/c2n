@@ -54,12 +54,12 @@ async function main() {
   //代币解锁时间
   const tokensUnlockTime = c['TGE'];
 // //////
-  const now = await getCurrentBlockTimestamp();
-  console.log("Current chain timestamp: ", now);
-  const token = await hre.ethers.getContractAt("C2NSale", c['tokenAddress']);
-  const symbol = await token.symbol();
-  console.log("Token symbol:", symbol);
-// ////
+//   const now = await getCurrentBlockTimestamp();
+//   console.log("Current chain timestamp: ", now);
+//   const token = await hre.ethers.getContractAt("C2NSale", c['tokenAddress']);
+//   const symbol = await token.symbol();
+//   console.log("Token symbol:", symbol);
+// // ////
   //设置销售参数
   console.log("ready to set sale params")
   tx = await sale.setSaleParams(
