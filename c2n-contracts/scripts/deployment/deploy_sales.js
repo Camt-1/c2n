@@ -5,7 +5,8 @@ const {ethers} = hre
 
 async function getCurrentBlockTimestamp() {
   //通过调用最新区块的时间戳,获取链上的当前时间
-  return (await ethers.provider.getBlock('latest')).timestamp;
+  const block = await ethers.provider.getBlock('latest');
+  return block.timestamp;
 }
 
 //定义一个延迟函数,延迟时间为为3000毫秒(3秒)
@@ -52,8 +53,13 @@ async function main() {
   const maxParticipation = ethers.parseUnits(c['maxParticipation'], 18);
   //代币解锁时间
   const tokensUnlockTime = c['TGE'];
-
-
+// //////
+  const now = await getCurrentBlockTimestamp();
+  console.log("Current chain timestamp: ", now);
+  const token = await hre.ethers.getContractAt("C2NSale", c['tokenAddress']);
+  const symbol = await token.symbol();
+  console.log("Token symbol:", symbol);
+// ////
   //设置销售参数
   console.log("ready to set sale params")
   tx = await sale.setSaleParams(
@@ -87,8 +93,9 @@ async function main() {
   console.log('Sale time set.');
 
   //调用setVestingParams设置分期解锁参数
-  const unlockingTimes = c['unlockingTimes'];
+  const unlockingTimes = c['unlockingTimes'].map(BigInt);
   const percents = c['portionPercents'];
+  const maxVestingTimeShift = BigInt(c['maxVestingTimeShift']);
   console.log('Unlocking times: ', unlockingTimes);
   console.log('Percents: ', percents);
   console.log('Precision for vesting: ', c['portionVestingPrecision']);
@@ -100,31 +107,47 @@ async function main() {
 
 
   //打印所有设置的参数信息
-  console.log({
-    saleAddress: lastDeployedSale,
-    saleToken: c['tokenAddress'],
-    saleOwner,
-    tokenPriceInEth: tokenPriceInEth.toString(),
-    totalTokens: totalTokens.toString(),
-    saleEndTime,
-    tokensUnlockTime,
-    registrationStart,
-    registrationEnd,
-    saleStartTime
-  });
+  // console.log({
+  //   saleAddress: lastDeployedSale,
+  //   saleToken: c['tokenAddress'],
+  //   saleOwner,
+  //   tokenPriceInEth: tokenPriceInEth.toString(),
+  //   totalTokens: totalTokens.toString(),
+  //   saleEndTime,
+  //   tokensUnlockTime,
+  //   registrationStart,
+  //   registrationEnd,
+  //   saleStartTime
+  // });
 
-  console.log(JSON.stringify({
+  // console.log(JSON.stringify({
+  //   saleAddress: lastDeployedSale,
+  //   saleToken: c['tokenAddress'],
+  //   saleOwner,
+  //   tokenPriceInEth: tokenPriceInEth.toString(),
+  //   totalTokens: totalTokens.toString(),
+  //   saleEndTime,
+  //   tokensUnlockTime,
+  //   registrationStart,
+  //   registrationEnd,
+  //   saleStartTime
+  // }));
+
+  const summary = {
     saleAddress: lastDeployedSale,
-    saleToken: c['tokenAddress'],
+    saleToken: c["tokenAddress"],
     saleOwner,
     tokenPriceInEth: tokenPriceInEth.toString(),
     totalTokens: totalTokens.toString(),
-    saleEndTime,
-    tokensUnlockTime,
-    registrationStart,
-    registrationEnd,
-    saleStartTime
-  }));
+    saleEndTime: saleEndTime.toString(),
+    tokensUnlockTime: tokensUnlockTime.toString(),
+    registrationStart: registrationStart.toString(),
+    registrationEnd: registrationEnd.toString(),
+    saleStartTime: saleStartTime.toString()
+  };
+
+  console.log(summary);
+  console.log(JSON.stringify(summary));
 }
 
 main()

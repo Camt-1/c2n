@@ -21,7 +21,7 @@ async function main() {
   //部署新的AllocationStaking实现合约
   const allocationStakingImpl = await allocationStakingImplementation.deploy();
   //等待部署完成
-  await allocationStakingImpl.deployed();
+  await allocationStakingImpl.waitForDeployment();
 
   //输出新部署的AllocationStaking实现合约的地址
   console.log("New Implementation: ", allocationStakingImpl.address);

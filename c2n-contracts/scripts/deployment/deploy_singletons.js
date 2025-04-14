@@ -52,9 +52,10 @@ async function main() {
   console.log('AllocationStaking Proxy deployed to: ', allocationStaking.target);
   saveContractAddress(hre.network.name, 'AllocationStakingProxy', allocationStaking.target);
 
-  let proxyAdminContract = AllocationStaking;
-  saveContractAddress(hre.network.name, 'ProxyAdmin', proxyAdminContract.target);
-  console.log('Proxy Admin address is: ', proxyAdminContract.target);
+  const adminAddress = await upgrades.erc1967.getAdminAddress(allocationStaking.target);
+  saveContractAddress(hre.network.name, 'ProxyAdmin', adminAddress);
+  console.log('Proxy Admin address is: ', adminAddress);
+  
 
   //配置AllocationStaking
   console.log("ready to setAllocationStaking params")
@@ -63,7 +64,7 @@ async function main() {
 
   //授权代币并添加池子
   const totalRewards = ethers.parseUnits(c.initialRewardsAllocationStaking);
-  const token = hre.ethers.getContractAt('C2NToken', contracts['C2N-TOKEN']);
+  const token = await hre.ethers.getContractAt('C2NToken', contracts['C2N-TOKEN']);
   console.log("ready to approve " , c.initialRewardsAllocationStaking, "token to staking");
 
   let tx = await token.approve(allocationStaking.target, totalRewards);

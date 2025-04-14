@@ -7,9 +7,9 @@ const TOTAL_SUPPLY = 100000000
 const NAME = 'C2N TOKEN'
 const SYMBOL = 'C2N'
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
-const INITIAL_SUPPLY = ethers.utils.parseEther(TOTAL_SUPPLY.toString())
-const transferAmount = ethers.utils.parseEther("10")
-const unitTokenAmount = ethers.utils.parseEther("1")
+const INITIAL_SUPPLY = ethers.parseUnits(TOTAL_SUPPLY.toString())
+const transferAmount = ethers.parseUnits("10")
+const unitTokenAmount = ethers.parseUnits("1")
 
 const overdraftAmount = INITIAL_SUPPLY.add(unitTokenAmount)
 const overdraftAmountMinusOne = overdraftAmount.sub(unitTokenAmount)
@@ -289,7 +289,7 @@ describe('breToken: ERC20: approve', () => {
 
       describe('when the spender had an approved amount', () => {
         before(async () => {
-          await awaitTx(breTokne.approve(anotherAccountAddr, ethers.utils.parseEther('1')))
+          await awaitTx(breTokne.approve(anotherAccountAddr, ethers.parseUnits('1')))
           r = await awaitTx(breToken.approve(anotherAccountAddr, transferAmount))
         })
 
@@ -329,7 +329,7 @@ describe('breToken: ERC20: approve', () => {
 
       describe('when the spender had an approved amount', () => {
         before(async () => {
-          await breToken.approve(anotherAccountAddr, ethers.utils.parseEther('1'))
+          await breToken.approve(anotherAccountAddr, ethers.parseUnits('1'))
           r = await (await breToken.approve(anotherAccountAddr, overdraftAmount)).wait()
         })
 
