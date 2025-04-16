@@ -18,7 +18,7 @@ async function main() {
   console.log("MCK deployed to: ", token.target);
 
   //保存合约地址
-  saveContractAddress(hre.network.name, "MCK-TOKEN", token.target);
+  saveContractAddress(hre.network.name, "MOCK-TOKEN", token.target);
 }
 
 main()

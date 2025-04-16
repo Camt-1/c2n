@@ -2,285 +2,343 @@ const {ethers} = require("hardhat");
 const {expect} = require("chai");
 const ethUtil = require("ethereumjs-util")
 
-describe('SalesFactoty', function ()  {
-  let Admin
-  let C2NSale
-  let C2NToken, BreToken2
-  let SalesFactory
-  let C2NSaleFactory
-  let deployer, alice, bob
-  let AllocationStakingRewardsFactory
-  let AllocationStaking
-  let startTimestamp
+describe("SalesFactory", function () {
 
-  let ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+    let Admin;
+    let C2NSale;
+    let C2NToken, BreToken2;
+    let SalesFactory;
+    let C2NSaleFactory;
+    let deployer, alice, bob;
+    let AllocationStakingRewardsFactory;
+    let AllocationStaking;
+    let startTimestamp;
 
-  const REWARDS_PER_SECOND = ethers.utils.parseUnits("0.1")
-  const DEPOSIT_FEE_PERCENT = 5
-  const DEPOSIT_FEE_PRECISION = 100
-  const REGISTRATION_DEPOSIT_AVAX = 1
-  const PORTION_VESTING_PRECISION = 100
-  const START_TIMESTAMP_DELTA = 600
-  const MAX_PARTICIPATION = 1000000
+    let ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
-  const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY
+    const REWARDS_PER_SECOND = ethers.utils.parseUnits("0.1");
+    const DEPOSIT_FEE_PERCENT = 5;
+    const DEPOSIT_FEE_PRECISION = 100;
+    const REGISTRATION_DEPOSIT_AVAX = 1;
+    const PORTION_VESTING_PRECISION = 100;
+    const START_TIMESTAMP_DELTA = 600;
+    const MAX_PARTICIPATION = 1000000
 
-  async function getCurrentBlockTimestamp() {
-    return (await ethers.provider.getBlock('laster')).timestamp
-  }
+    const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY
 
-  //合约初始化
-  beforeEach(async function () {
-    const accounts = await ethers.getSigners()
-    deployer = accounts[0]
-    alice = accounts[1]
-    bob = accounts[2]
+    async function getCurrentBlockTimestamp() {
+        return (await ethers.provider.getBlock('latest')).timestamp;
+    }
 
-    const BreTokenFactory = await ethers.getContractFactory('C2NToken')
-    C2NToken = await BreTokenFactory.deploy('C2N', 'C2N', ethers.utils.parseUnits("100000000"), 18)
-    BreToken2 = await BreTokenFactory.deploy('Bre2', 'BRE2', ethers.utils.parseUnits("100000000"), 18)
+    beforeEach(async function () {
+        const accounts = await ethers.getSigners();
+        deployer = accounts[0];
+        alice = accounts[1];
+        bob = accounts[2];
 
-    const AdminFactory = await ethers.getContractFactory('Admin')
-    Admin = await AdminFactory.deploy((deployer.address, alice.address, bob.address))
+        const BreTokenFactory = await ethers.getContractFactory("C2NToken");
+        C2NToken = await BreTokenFactory.deploy("C2N", "C2N", ethers.utils.parseUnits("100000000"), 18);
+        BreToken2 = await BreTokenFactory.deploy("Bre2", "BRE2", ethers.utils.parseUnits("100000000"), 18);
 
-    const SalesFactoryFactory = await ethers.getContractFactory("SalesFactory")
-    SalesFactory = await SalesFactoryFactory.deploy(Admin.address, ZERO_ADDRESS)
+        const AdminFactory = await ethers.getContractFactory("Admin");
+        Admin = await AdminFactory.deploy([deployer.address, alice.address, bob.address]);
 
-    AllocationStakingRewardsFactory = await ethers.getContractFactory('AllocationStaking')
-    const blockTimestamp = await getCurrentBlockTimestamp()
-    startTimestamp = blockTimestamp + START_TIMESTAMP_DELTA
-    AllocationStaking = await AllocationStakingRewardsFactory.deploy()
-    await AllocationStaking.initialize(C2NToken.address, REWARDS_PER_SECOND, startTimestamp, SalesFactory.address)
+        const SalesFactoryFactory = await ethers.getContractFactory("SalesFactory");
+        SalesFactory = await SalesFactoryFactory.deploy(Admin.address, ZERO_ADDRESS);
 
-    await AllocationStaking.add(1, C2NToken.address, false)
-    await SalesFactory.setAllocaionStaking(AllocationStaking.address)
+        AllocationStakingRewardsFactory = await ethers.getContractFactory("AllocationStaking");
+        const blockTimestamp = await getCurrentBlockTimestamp();
+        startTimestamp = blockTimestamp + START_TIMESTAMP_DELTA;
+        AllocationStaking = await AllocationStakingRewardsFactory.deploy();
+        await AllocationStaking.initialize(C2NToken.address, REWARDS_PER_SECOND, startTimestamp, SalesFactory.address);
 
-    C2NSaleFactory = await ethers.getContractFactory('C2NSale')
-  })
+        await AllocationStaking.add(1, C2NToken.address, false);
+        await SalesFactory.setAllocationStaking(AllocationStaking.address);
 
-  //工厂合约的初始化状态验证
-  context('Setup', async function () {
-    //验证SalesFactory的管理员地址是否正确设置
-    it('Should setup the factory correctly', async function () {
-      //Given
-      let admin = await SalesFactory.admin()
+        C2NSaleFactory = await ethers.getContractFactory("C2NSale");
+    });
 
-      //Then
-      expect(admin).to.equal(Admin.address)
-    })
+    context("Setup", async function () {
+        it("Should setup the factory correctly", async function () {
+            // Given
+            let admin = await SalesFactory.admin();
 
-    //验证是否正确设置AllocationStaking合约地址, 是否只有管理员可以设置AllocationStaking
-    describe('Set allocation staking', async function () {
-      it('Should set allocation staking contract', async function () {
-        //When
-        await SalesFactory.setAllocaionStaking(C2NToken.address)
+            // Then
+            expect(admin).to.equal(Admin.address);
+        });
 
-        //Then
-        expect(await SalesFactory.allocationStaking().to.equal(C2NToken.address))
-      })
+        describe("Set allocation staking", async function () {
+            it("Should set allocation staking contract", async function () {
+                // When
+                await SalesFactory.setAllocationStaking(C2NToken.address);
 
-      it('Should not set allocation staking contract to zero address', async function () {
-        //Then
-        await expect(SalesFactory.setAllocationStaking(ZERO_ADDRESS)).to.be.reverted
-      })
+                // Then
+                expect(await SalesFactory.allocationStaking()).to.equal(C2NToken.address);
+            });
 
-      it('Should no allow non-admin to set allocation staking contract', async function () {
-        //Given
-        await Admin.removeAdmin(deployer.address)
+            it("Should not set allocation staking contract to zero address", async function () {
+                // Then
+                await expect(SalesFactory.setAllocationStaking(ZERO_ADDRESS)).to.be.reverted;
+            });
 
-        //Then
-        await expect(SalesFactory.setAllocationStaking(C2NToken.address)).to.be.reverted
-      })
-    })
-  })
+            it("Should not allow non-admin to set allocation staking contract", async function () {
+                // Given
+                await Admin.removeAdmin(deployer.address);
 
-  //销售合约的验证
-  context('Sales', async function () {
-    //验证销售合约的部署
-    describe('Deploy sale', async function () {
-      //检查销售合约是否可以成功部署
-      it('Should deploy sale', async function () {
-        //When
-        await SalesFactory.deploySale()
+                // Then
+                await expect(SalesFactory.setAllocationStaking(C2NToken.address)).to.be.reverted;
+            });
+        });
+    });
 
-        //Then
-        expect(await SalesFactory.getNumberOFSalesDeployed()).to.equal(1)
-        const saleAddress = await SalesFactory.allSales(0)
-        expect(await SalesFactory.isSaleCreatedThroughfactory(saleAddress)).to.be.true
-      })
+    context("Sales", async function () {
+        describe("Deploy sale", async function () {
+            it("Should deploy sale", async function () {
+                // When
+                await SalesFactory.deploySale();
 
-      //验证是否只有管理员可以部署销售合约
-      it('Should not allow non-admin to deploy sale', async function () {
-        //Given
-        await Admin.removeAdmin(deployer.address)
+                // Then
+                expect(await SalesFactory.getNumberOfSalesDeployed()).to.equal(1);
+                const saleAddress = await SalesFactory.allSales(0);
+                expect(await SalesFactory.isSaleCreatedThroughFactory(saleAddress)).to.be.true;
+            });
 
-        //Then
-        await expect(SalesFactory.deploySale()).to.be.revertedWith('Only Admin can deploy sales')
-      })
+            it("Should not allow non-admin to deploy sale", async function () {
+                // Given
+                await Admin.removeAdmin(deployer.address);
 
-      //验证成功部署销售合约是否触发了SaleDeployed事件
-      it('Should emit SaleDeployed event', async function () {
-        //Then
-        await expect(SalesFactory.deploySale()).to.emit(SalesFactory, 'SaleDeployed')
-      })
-    })
+                // Then
+                await expect(SalesFactory.deploySale()).to.be.revertedWith("Only Admin can deploy sales");
+            });
 
-    //验证销售参数设置
-    describe('Set Sale owner and token', async function () {
-      //验证销售所有者和代币参数是否可以正确设置, 设置的销售参数是否符合预期
-      it('Should set sale owner and token', async function () {
-        //Given
-        await SalesFactory.deploySale()
-        const C2NSale =C2NSaleFactory.attach(await SalesFactory.allSales(0))
+            it("Should emit SaleDeployed event", async function () {
+                // Then
+                await expect(SalesFactory.deploySale()).to.emit(SalesFactory, "SaleDeployed");
+            });
+        });
 
-        //When
-        const blockTimestamp = (await ethers.provider.getBlock('latest')).timestamp
-        await C2NSale.setSaleParams(C2NToken.address, deployer.address, 10, 10, blockTimestamp + 100, blockTimestamp + 10, PORTION_VESTING_PERCISION, MAX_PARTICIPATION)
+        describe("Set sale owner and token", async function () {
+            it("Should set sale owner and token", async function () {
+                // Given
+                await SalesFactory.deploySale();
+                const C2NSale = C2NSaleFactory.attach(await SalesFactory.allSales(0));
 
-        //Then
-        const sale = await C2NSale.sale()
-        expect(sale.saleOwner).to.equal(deployer.address)
-        expect(sale.token).to.equal(C2NToken.address)
-      })
-    })
+                // When
+                const blockTimestamp = (await ethers.provider.getBlock('latest')).timestamp;
+                await C2NSale.setSaleParams(C2NToken.address, deployer.address, 10, 10, blockTimestamp + 100, blockTimestamp + 10, PORTION_VESTING_PRECISION, MAX_PARTICIPATION);
 
-    //验证部署成功后销售合约的数量是否正确
-    describe('Get number of sales deployed', async function () {
-      it('Should return 0 if there are no sales', async function () {
-        //Then
-        expect(await SalesFactory.getNumberOfSalesDeployed()).to.be.equal(0)
-      })
+                // Deprecated checks
+                // expect(await SalesFactory.saleOwnerToSale(deployer.address)).to.equal(C2NSale.address);
+                // expect(await SalesFactory.tokenToSale(C2NToken.address)).to.equal(C2NSale.address);
 
-      it('Should return number of sales if there is only one sale', async function () {
-        //Given
-        await SalesFactory.deploySale()
+                // Then
+                const sale = await C2NSale.sale();
+                expect(sale.saleOwner).to.equal(deployer.address);
+                expect(sale.token).to.equal(C2NToken.address);
+            });
 
-        //Then
-        expect(await SalesFactory.getNumberOfSalesDeployed().to.equal(1))
-      })
+            // Deprecated
+            xit("Should emit SaleOwnerAndTokenSetInFactory event", async function () {
+                // Given
+                await SalesFactory.deploySale();
+                const C2NSale = C2NSaleFactory.attach(await SalesFactory.allSales(0));
 
-      it('Should return number of sales if there are multiple sales', async function () {
-        //Given
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
+                // Then
+                const blockTimestamp = (await ethers.provider.getBlock('latest')).timestamp;
+                await expect(C2NSale.setSaleParams(C2NToken.address, deployer.address, 10, 10, blockTimestamp + 100, blockTimestamp + 10, PORTION_VESTING_PRECISION, 1, REGISTRATION_DEPOSIT_AVAX
+                )).to.emit(SalesFactory, "SaleOwnerAndTokenSetInFactory");
+            });
 
-        //Then
-        expect(await SalesFactory.getNumberOfSalesDeployed().to.equal(3))
-      })
-    })
+            // Deprecated
+            xit("Should not allow same sale owner to own two sales", async function () {
+                // Given
+                await SalesFactory.deploySale();
+                const C2NSale = C2NSaleFactory.attach(await SalesFactory.allSales(0));
 
-    //销售合约信息的获取
-    describe('Get all sales', async function () {
-      it('Should return last deployed sale', async function () {
-        //Given
-        //Condition: There were no sales deployed before
-        await SalesFactory.deploySale()
+                const blockTimestamp = (await ethers.provider.getBlock('latest')).timestamp;
+                await C2NSale.setSaleParams(
+                    C2NToken.address, deployer.address, 10, 10, blockTimestamp + 100,
+                    blockTimestamp + 10, PORTION_VESTING_PRECISION, 1, REGISTRATION_DEPOSIT_AVAX
+                );
 
-        let sale = await SalesFactory.allSales(0)
-        expect(await SalesFactory.getLastDeployedSale()).to.equal(sale)
-      })
+                // When
+                await SalesFactory.deploySale();
+                const C2NSale2 = C2NSaleFactory.attach(await SalesFactory.allSales(1));
 
-      it('Should return zero address if there were no sales deployed', async function () {
-        //Given
-        //Condition: There were no sales deployed before
+                // Then
+                await expect(C2NSale2.setSaleParams(
+                    C2NToken.address, deployer.address, 10, 10, blockTimestamp + 100,
+                    blockTimestamp + 10, PORTION_VESTING_PRECISION, 2, REGISTRATION_DEPOSIT_AVAX
+                )).to.be.revertedWith("Sale owner already set.");
+            });
 
-        expect(await SalesFactory.getLastDeployedSale()).to.equal(ZERO_ADDRESS)
-      })
+            // Deprecated
+            xit("Should not allow same token to be part of two sales", async function () {
+                // Given
+                await SalesFactory.deploySale();
+                const C2NSale = C2NSaleFactory.attach(await SalesFactory.allSales(0));
 
-      it('Should return only first sale', async function () {
-        //Given
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
-        
-        //When
-        const sales = await SalesFactory.getAllSales(0, 1)
+                const blockTimestamp = (await ethers.provider.getBlock('latest')).timestamp;
+                await C2NSale.setSaleParams(
+                    C2NToken.address, deployer.address, 10, 10, blockTimestamp + 100,
+                    blockTimestamp + 10, PORTION_VESTING_PRECISION, 1, REGISTRATION_DEPOSIT_AVAX
+                );
 
-        //Then
-        expect(sales.length).to.equal(1)
-        expect(sales[0]).to.equal(await SalesFactory.allSales(0))
-      })
+                // When
+                await SalesFactory.deploySale();
+                const C2NSale2 = C2NSaleFactory.attach(await SalesFactory.allSales(1));
 
-      it('Should return only last sale', async function () {
-        //Given
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
+                // Then
+                await expect(C2NSale2.setSaleParams(C2NToken.address, alice.address, 10, 10, blockTimestamp + 100, blockTimestamp + 10))
+                    .to.be.revertedWith("Sale token already set.");
+            });
 
-        //When
-        const sales = await SalesFactory.getAllSales(2, 3)
+            // Deprecated
+            xit("Should not allow address to set sale owner and token if address not deployed through factory", async function () {
+                // Given
+                await SalesFactory.deploySale();
 
-        //Then
-        expect(sales.length).to.equal(1)
-        expect(sales[0]).to.equal(await SalesFactory.allSales(2))
-      })
+                // Then
+                await expect(SalesFactory.setSaleOwnerAndToken(deployer.address, C2NToken.address))
+                    .to.be.revertedWith("setSaleOwnerAndToken: Contract not eligible.");
+            });
+        });
 
-      it('Should return all sales', async function () {
-        //Given
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
+        describe("Get number of sales deployed", async function () {
+            it("Should return 0 if there are no sales", async function () {
+                // Then
+                expect(await SalesFactory.getNumberOfSalesDeployed()).to.equal(0);
+            });
 
-        //When
-        const sales = await SalesFactory.getAllSales(0,3)
+            it("Should return number of sales if there is only one sale", async function () {
+                // Given
+                await SalesFactory.deploySale();
 
-        //Then
-        expect(sales.length).to.equal(3)
-        expect(sales[0]).to.equal(await SalesFactory.allSales(0))
-        expect(sales[1]).to.equal(await SalesFactory.allSales(1))
-        expect(sales[2]).to.equal(await SalesFactory.allSales(2))
-      })
+                // Then
+                expect(await SalesFactory.getNumberOfSalesDeployed()).to.equal(1);
+            });
 
-      it('Should not return 0 sales', async function () {
-        //Given
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
+            it("Should return number of sales if there are multiple sales", async function () {
+                // Given
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
 
-        //Then
-        await expect(SalesFactory.getAllSales(2, 3)).to.be.reverted
-      })
+                // Then
+                expect(await SalesFactory.getNumberOfSalesDeployed()).to.equal(3);
+            });
+        });
 
-      it('Should not return sales if start index is higher than end index', async function () {
-        //Given
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
+        describe("Get all sales", async function () {
+            it("Should return last deployed sale", async function () {
+                // Given
+                // Condition: There were no sales deployed before
+                await SalesFactory.deploySale();
 
-        //Then
-        await expect(SalesFactory.getAllSales(1, 0)).to.be.reverted
-      })
+                let sale = await SalesFactory.allSales(0);
+                expect(await SalesFactory.getLastDeployedSale()).to.equal(sale);
+            });
 
-      it('Should not allow negative start index', async function () {
-        //Give
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
+            it("Should return zero address if there were no sales deployed", async function () {
+                // Given
+                // Condition: There were no sales deployed before
 
-        //Then
-        await expect(SalesFactory.getAllSales(-5, 2)).to.be.reverted
-      })
+                expect(await SalesFactory.getLastDeployedSale()).to.equal(ZERO_ADDRESS);
+            });
 
-      it('Should not allow end index out of bounds', async function () {
-        //Given
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
+            it("Should return only first sale", async function () {
+                // Given
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
 
-        //Then
-        await expect(SalesFactory.getAllSales(1, 12)).to.be.reverted
-      })
+                // When
+                const sales = await SalesFactory.getAllSales(0, 1);
 
-      it('Should not allow start index out of bounds', async function () {
-        //Given
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
-        await SalesFactory.deploySale()
+                // Then
+                expect(sales.length).to.equal(1);
+                expect(sales[0]).to.equal(await SalesFactory.allSales(0));
+            });
 
-        //Then
-        await expect(SalesFactory.getAllSales(12, 13)).to.be.reverted
-l      })
-    })
-  })
-})
+            it("Should return only last sale", async function () {
+                // Given
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+
+                // When
+                const sales = await SalesFactory.getAllSales(2, 3);
+
+                // Then
+                expect(sales.length).to.equal(1);
+                expect(sales[0]).to.equal(await SalesFactory.allSales(2));
+            });
+
+            it("Should return all sales", async function () {
+                // Given
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+
+                // When
+                const sales = await SalesFactory.getAllSales(0, 3);
+
+                // Then
+                expect(sales.length).to.equal(3);
+                expect(sales[0]).to.equal(await SalesFactory.allSales(0));
+                expect(sales[1]).to.equal(await SalesFactory.allSales(1));
+                expect(sales[2]).to.equal(await SalesFactory.allSales(2));
+            });
+
+            it("Should not return 0 sales", async function () {
+                // Given
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+
+                // Then
+                await expect(SalesFactory.getAllSales(2, 2)).to.be.reverted;
+            });
+
+            it("Should not return sales if start index is higher than end index", async function () {
+                // Given
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+
+                // Then
+                await expect(SalesFactory.getAllSales(1, 0)).to.be.reverted;
+            });
+
+            it("Should not allow negative start index", async function () {
+                // Given
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+
+                // Then
+                await expect(SalesFactory.getAllSales(-5, 2)).to.be.reverted;
+            });
+
+            it("Should not allow end index out of bounds", async function () {
+                // Given
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+
+                // Then
+                await expect(SalesFactory.getAllSales(1, 12)).to.be.reverted;
+            });
+
+            it("Should not allow start index out of bounds", async function () {
+                // Given
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+                await SalesFactory.deploySale();
+
+                // Then
+                await expect(SalesFactory.getAllSales(12, 13)).to.be.reverted;
+            });
+        });
+    });
+});

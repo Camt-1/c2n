@@ -1,6 +1,6 @@
-const hre = require("hardhat");
+const hre = require("hardhat")
 const {saveContractAddress, getSavedContractAddresses} = require('../utils')
-const config = require("../configs/saleConfig.json");
+const config = require("../configs/saleConfig.json")
 const {ethers} = hre
 
 //获取当前网络中最新区块的时间戳
@@ -18,14 +18,14 @@ async function main() {
   const c = config[hre.network.name];
 
   //获取合约实例
-  const token = await hre.ethers.getContractAt('C2NToken', contracts['MOKE-TOKEN']);
+  const token = await hre.ethers.getContractAt('C2NToken', contracts['MOCK-TOKEN']);
   const salesFactory = await hre.ethers.getContractAt('SalesFactory', contracts['SalesFactory']);
 
   //获取最后部署的销售合约地址
   const lastDeployedSale = await salesFactory.getLastDeployedSale();
-  await token.approve(lastDeployedSale, ethers.utils.parseEther(c.totalTokens));
+  await token.approve(lastDeployedSale, ethers.parseEther(c.totalTokens));
   console.log('Deployed Sale address is: ', lastDeployedSale);
-  console.log(`token.approve(${token.address}, ${c.totalTokens})`);
+  console.log(`token.approve(${token.target}, ${c.totalTokens})`);
 
   //获取销售合约并调用方法
   const sale = await hre.ethers.getContractAt('C2NSale', lastDeployedSale);
