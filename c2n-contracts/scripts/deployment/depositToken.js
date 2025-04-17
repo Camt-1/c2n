@@ -19,13 +19,14 @@ async function main() {
 
   //获取合约实例
   const token = await hre.ethers.getContractAt('C2NToken', contracts['MOCK-TOKEN']);
+  console.log(`${token}, ${token.target}`)
   const salesFactory = await hre.ethers.getContractAt('SalesFactory', contracts['SalesFactory']);
 
   //获取最后部署的销售合约地址
   const lastDeployedSale = await salesFactory.getLastDeployedSale();
   await token.approve(lastDeployedSale, ethers.parseEther(c.totalTokens));
   console.log('Deployed Sale address is: ', lastDeployedSale);
-  console.log(`token.approve(${token.target}, ${c.totalTokens})`);
+  console.log(`token.approve(${lastDeployedSale}, ${c.totalTokens})`);
 
   //获取销售合约并调用方法
   const sale = await hre.ethers.getContractAt('C2NSale', lastDeployedSale);
