@@ -24,8 +24,8 @@ contract Admin {
     external
     onlyAdmin
     {
-        require(_adminAddress != address(0), "[RBAC] : Admin must be != than 0 address");
-        require(!isAdmin[_adminAddress], "[RBAC] : Admin already exists.");
+        require(_adminAddress != address(0), "[RBAC]: Admin must be != than 0 address");
+        require(!isAdmin[_adminAddress], "[RBAC]: Admin already exists.");
         admins.push(_adminAddress);
         isAdmin[_adminAddress] = true;
     }

@@ -1,15 +1,13 @@
-const { ethers } = require("hardhat")
-const hre = require('hardhat');
-const chai = require('chai');
-const expect = chai.expect;
+const { expect } = require('chai');
+const { ethers } = require('hardhat');
 
 const TOTAL_SUPPLY = 100000000
 const NAME = 'C2N TOKEN'
 const SYMBOL = 'C2N'
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 const INITIAL_SUPPLY = ethers.parseUnits(TOTAL_SUPPLY.toString())
-const transferAmount = ethers.parseUnits("10")
-const unitTokenAmount = ethers.parseUnits("1")
+const transferAmount = ethers.parseUnits('10')
+const unitTokenAmount = ethers.parseUnits('1')
 
 const overdraftAmount = INITIAL_SUPPLY.add(unitTokenAmount)
 const overdraftAmountMinusOne = overdraftAmount.sub(unitTokenAmount)
@@ -23,7 +21,7 @@ async function awaitTx(tx) {
 }
 //工具方法, 捕获以太坊交易异常并返回是否属于预期错误
 async function isEthException(promise) {
-  let msg = 'No Exception';
+  let msg = 'No Exception'
   try {
     let x = await promise
   } catch (e) {
@@ -39,7 +37,7 @@ async function isEthException(promise) {
 
 //合约部署和账户设置
 async function setupContractAndAccounts () {
-  let accounts = await ethers.getSigners()
+  const accounts = await ethers.getSigners()
   owner = accounts[0]
   ownerAddr = await owner.getAddress()
   anotherAccount = accounts[1]
@@ -47,14 +45,14 @@ async function setupContractAndAccounts () {
   recipient = accounts[2]
   recipientAddr = await recipient.getAddress()
 
-  const BreTokenFactory = await hre.ethers.getContractFactory("C2NToken");
+  const BreTokenFactory = await hre.ethers.getContractFactory('C2NToken')
   breToken = await BreTokenFactory.deploy(
     NAME,
     SYMBOL,
     INITIAL_SUPPLY,
     18
-  );
-  await breToken.deployed()
+  )
+  await breToken.waitForDeployment()
   breToken = breToken.connect(owner)
 }
 
@@ -105,7 +103,7 @@ describe('breToken: ERC20', () => {
   describe('burn', () => {
     it('should not burn more than account balance', async () => {
       let oldBalance = await breToken.balanceOf(ownerAddr)
-      await expect(breToken.burn(oldBalance.add(unitTokenAmount))).to.be.revertedWith("ERC20: burn amount exceeds balance")
+      await expect(breToken.burn(oldBalance.add(unitTokenAmount))).to.be.revertedWith('ERC20: burn amount exceeds balance')
     })
 
     it('burn tokens', async () => {
@@ -151,7 +149,7 @@ describe('breToken: ERC20: transfer', () => {
 
     it('should transfer the requested amount', async () => {
       const senderBalance = await breToken.balanceOf(ownerAddr)
-      const recipientBalance = await breToken.blanceOf(recipientAddr)
+      const recipientBalance = await breToken.balanceOf(recipientAddr)
       const supply = await breToken.totalSupply()
       expect(supply.sub(transferAmount)).to.equal(senderBalance)
       expect(recipientBalance).to.equal(transferAmount)
@@ -238,11 +236,11 @@ describe('breToken: ERC20: transferFrom', () => {
         })
 
         it('emits a transfer event', async () => {
-          expect(r.events.length).to.be.equal(2);
+          expect(r.events.length).to.be.equal(2)
           expect(r.events[0].event).to.equal('Transfer')
           expect(r.events[0].args.from).to.equal(ownerAddr)
           expect(r.events[0].args.to).to.be.equal(recipientAddr)
-          expect(r.event[0].args.value).to.equal(transferAmount)
+          expect(r.events[0].args.value).to.equal(transferAmount)
         })
 
         it('transfers the requested amount', async () => {
@@ -262,7 +260,7 @@ describe('breToken: ERC20: transferFrom', () => {
 
 //授权功能验证
 describe('breToken: ERC20: approve', () => {
-  breToken('setup breToken contract', async () => {
+  brfore('setup breToken contract', async () => {
     await setupContractAndAccounts()
   })
 
@@ -289,7 +287,7 @@ describe('breToken: ERC20: approve', () => {
 
       describe('when the spender had an approved amount', () => {
         before(async () => {
-          await awaitTx(breTokne.approve(anotherAccountAddr, ethers.parseUnits('1')))
+          await awaitTx(breToken.approve(anotherAccountAddr, ethers.parseUnits('1')))
           r = await awaitTx(breToken.approve(anotherAccountAddr, transferAmount))
         })
 
@@ -301,7 +299,7 @@ describe('breToken: ERC20: approve', () => {
           expect(r.events.length).to.equal(1)
           expect(r.events[0].event).to.equal('Approval')
           expect(r.events[0].args.owner).to.equal(ownerAddr)
-          expect(r.events[0].args.spender).to.equal.apply(anotherAccountAddr)
+          expect(r.events[0].args.spender).to.equal(anotherAccountAddr)
           expect(r.events[0].args.value).to.equal(transferAmount)
         })
       })
@@ -315,7 +313,7 @@ describe('breToken: ERC20: approve', () => {
         })
 
         it('approves the requested amount', async () => {
-          expect(await breToken.allowance(ownerAddr, anotherAccountAddr).to.equal(overdraftAmount))
+          expect(await breToken.allowance(ownerAddr, anotherAccountAddr)).to.equal(overdraftAmount)
         })
 
         it('emits an approval event', async () => {
@@ -361,7 +359,7 @@ describe('breToken: ERC20: decreaseAllowance', () => {
 
         it('should not decrease allowance more than current allowance', async () => {
           let currentAllowance = await breToken.allowance(ownerAddr, anotherAccountAddr)
-          await expect(breToken.decreaseAllowance(anotherAccouontAddr, currentAllowance.add(unitTokenamount))).to.be.revertedWith("ERC20: decreased allowance below zero")
+          await expect(breToken.decreaseAllowance(anotherAccountAddr, currentAllowance.add(unitTokenAmount))).to.be.revertedWith('ERC20: decreased allowance below zero')
         })
 
         it('approves the requested amount', async () => {

@@ -9,7 +9,7 @@
 - Tests are inside `test/` folder.
 
 
-node 版本：v18.19.1
+node 版本：v18.20.6
 
 部署流程
 1. `npx hardhat run --network local scripts/deployment/deploy_boba_token.js`
