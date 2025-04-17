@@ -19,7 +19,6 @@ async function main() {
 
   //获取合约实例
   const token = await hre.ethers.getContractAt('C2NToken', contracts['MOCK-TOKEN']);
-  console.log(`${token}, ${token.target}`)
   const salesFactory = await hre.ethers.getContractAt('SalesFactory', contracts['SalesFactory']);
 
   //获取最后部署的销售合约地址

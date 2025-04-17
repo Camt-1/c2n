@@ -113,7 +113,7 @@ async function main() {
   };
 
   console.log('Deployment summary')
-  console.log(summary)
+  console.table(summary)
   console.log(JSON.stringify(summary))
 }
 
